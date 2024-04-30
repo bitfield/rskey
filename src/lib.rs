@@ -1,34 +1,23 @@
 use std::collections::HashMap;
 
-pub struct Store {
-    data: HashMap<&'static str, &'static str>,
+pub struct Store<'a> {
+    data: HashMap<&'a str, &'a str>,
 }
 
-impl Store {
+impl<'a> Store<'a> {
     pub fn new() -> Self {
-        Self {
-            data: HashMap::new(),
-        }
+        let data = HashMap::new();
+        Self { data }
     }
-    pub fn set(&mut self, k: &'static str, v: &'static str) {
+    pub fn set(&mut self, k: &'a str, v: &'a str) {
         self.data.insert(k, v);
     }
     pub fn get(&self, k: &str) -> Option<&str> {
         return self.data.get(k).copied();
     }
-    pub fn all(self) -> Vec<Pair> {
-        let mut result = Vec::with_capacity(self.data.len());
-        for (k, v) in self.data {
-            result.push(Pair { key: k, value: v })
-        }
-        result
+    pub fn iter(&self) -> std::collections::hash_map::Iter<&'a str, &'a str> {
+        self.data.iter()
     }
-}
-
-#[derive(PartialEq, Debug, Eq, PartialOrd, Ord)]
-pub struct Pair {
-    key: &'static str,
-    value: &'static str,
 }
 
 #[cfg(test)]
@@ -38,7 +27,11 @@ mod tests {
     #[test]
     fn new_store_contains_no_data() {
         let s = Store::new();
-        assert!(s.all().is_empty(), "unexpected data found in new store")
+        assert_eq!(
+            Vec::<(&&str, &&str)>::new(),
+            s.iter().collect::<Vec<_>>(),
+            "unexpected data found in new store"
+        )
     }
 
     #[test]
@@ -68,22 +61,13 @@ mod tests {
     }
 
     #[test]
-    fn all_returns_all_pairs() {
+    fn store_contains_expected_data() {
         let mut s = Store::new();
         s.set("foo", "bar");
         s.set("baz", "quux");
-        let want = vec![
-            Pair {
-                key: "baz",
-                value: "quux",
-            },
-            Pair {
-                key: "foo",
-                value: "bar",
-            },
-        ];
-        let mut got = s.all();
-        got.sort();
-        assert_eq!(want, got, "expected data not returned")
+        let want = vec![(&"baz", &"quux"), (&"foo", &"bar")];
+        let mut data: Vec<(&&str, &&str)> = s.iter().collect();
+        data.sort();
+        assert_eq!(want, data, "expected data not returned")
     }
 }

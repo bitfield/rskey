@@ -8,5 +8,7 @@ fn main() {
         Some(v) => println!("{}", v),
         None => println!("not found"),
     }
-    println!("{:?}", s.all())
+    for (k, v) in s.iter() {
+        println!("{k}: {v}")
+    }
 }
