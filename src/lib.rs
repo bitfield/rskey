@@ -38,10 +38,7 @@ impl<'a> Store<'a> {
 mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
-    use std::{
-        fs::{self, File},
-        os::unix::fs::PermissionsExt,
-    };
+    use std::fs;
     use tempfile::TempDir;
 
     #[test]
@@ -101,13 +98,12 @@ mod tests {
     #[test]
     fn open_or_create_fn_errors_on_invalid_path() {
         let tmp_dir = TempDir::new().unwrap();
-        let path = tmp_dir.path().join("unreadable");
-        let f = File::create(&path).unwrap();
-        let mut perms = f.metadata().unwrap().permissions();
-        perms.set_mode(0o000);
-        fs::set_permissions(&path, perms).unwrap();
-        let s = Store::open_or_create(&path);
-        assert!(s.is_err(), "want error for unreadable file")
+        let path = tmp_dir.path().join("not_a_directory");
+        fs::write(&path, "").unwrap();
+        // 'TMPDIR/not_a_directory/store_file' is invalid
+        // because 'not_a_directory' is not a directory
+        let s = Store::open_or_create(&path.join("store_file"));
+        assert!(s.is_err(), "want error for invalid path")
     }
 
     fn new_test_store<'a>() -> Store<'a> {
