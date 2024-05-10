@@ -106,9 +106,16 @@ mod tests {
         assert!(s.is_err(), "want error for invalid path")
     }
 
+    #[test]
+    fn breaking2() {
+        panic!();
+    }
+
     fn new_test_store<'a>() -> Store<'a> {
         Store {
             data: HashMap::new(),
         }
     }
+
+    // dummy change
 }

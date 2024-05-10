@@ -1,4 +1,3 @@
-# Based on https://github.com/mvdan/github-actions-golang
 on: [push, pull_request, workflow_dispatch]
 name: Tests
 jobs:
@@ -9,6 +8,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+      - run: git merge origin/${{ github.event.repository.default_branch }}
       - run: cargo test
