@@ -8,8 +8,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: 'main'
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - run: git checkout main
       - run: git merge $GITHUB_REF_NAME
       - run: cargo test
