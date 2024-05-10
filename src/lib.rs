@@ -1,19 +1,22 @@
+use serde::Deserialize;
 use std::collections::{hash_map, HashMap};
 use std::fs::File;
-use std::io::ErrorKind;
+use std::io::{BufReader, ErrorKind};
 use std::path::Path;
 
-#[derive(Debug)]
-pub struct Store<'a> {
-    data: HashMap<&'a str, &'a str>,
+#[derive(Debug, Deserialize)]
+pub struct Store {
+    data: HashMap<String, String>,
 }
 
-impl<'a> Store<'a> {
+impl Store {
     pub fn open_or_create<P: AsRef<Path>>(path: P) -> Result<Self, std::io::Error> {
         match File::open(&path) {
-            Ok(_) => Ok(Self {
-                data: HashMap::new(),
-            }),
+            Ok(file) => {
+                let reader = BufReader::new(file);
+                let s = serde_json::from_reader(reader)?;
+                Ok(s)
+            }
             Err(e) if e.kind() == ErrorKind::NotFound => Ok(Self {
                 data: HashMap::new(),
             }),
@@ -21,15 +24,15 @@ impl<'a> Store<'a> {
         }
     }
 
-    pub fn set(&mut self, k: &'a str, v: &'a str) -> Option<&str> {
-        self.data.insert(k, v)
+    pub fn set(&mut self, k: &str, v: &str) -> Option<String> {
+        self.data.insert(k.to_string(), v.to_string())
     }
 
     pub fn get(&self, k: &str) -> Option<&str> {
-        self.data.get(k).copied()
+        Some(self.data.get(k)?.as_str())
     }
 
-    pub fn iter(&self) -> hash_map::Iter<'a, &str, &str> {
+    pub fn iter(&self) -> hash_map::Iter<String, String> {
         self.data.iter()
     }
 }
@@ -44,8 +47,9 @@ mod tests {
     #[test]
     fn new_store_contains_no_data() {
         let s = new_test_store();
+        let want: Vec<(&String, &String)> = vec![];
         assert_eq!(
-            Vec::<(&&str, &&str)>::new(),
+            want,
             s.iter().collect::<Vec<_>>(),
             "unexpected data found in new store"
         )
@@ -102,11 +106,11 @@ mod tests {
         fs::write(&path, "").unwrap();
         // 'TMPDIR/not_a_directory/store_file' is invalid
         // because 'not_a_directory' is not a directory
-        let s = Store::open_or_create(&path.join("store_file"));
+        let s = Store::open_or_create(path.join("store_file"));
         assert!(s.is_err(), "want error for invalid path")
     }
 
-    fn new_test_store<'a>() -> Store<'a> {
+    fn new_test_store() -> Store {
         Store {
             data: HashMap::new(),
         }

@@ -5,10 +5,10 @@ fn main() {
     s.set("foo", "bar");
     let v = s.get("bogus");
     match v {
-        Some(v) => println!("{}", v),
+        Some(v) => println!("{v}"),
         None => println!("not found"),
     }
     for (k, v) in s.iter() {
-        println!("{k}: {v}")
+        println!("{k}: {v}");
     }
 }
