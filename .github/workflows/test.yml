@@ -13,5 +13,5 @@ jobs:
           fetch-depth: 0
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - run: git merge origin/${{ github.ref }}
+      - run: git merge "$GITHUB_HEAD_REF"
       - run: cargo test
