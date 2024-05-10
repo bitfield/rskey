@@ -9,9 +9,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 'main'
           fetch-depth: 0
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - run: git merge "$GITHUB_HEAD_REF"
+      - run: git merge ${{ github.event.repository.default_branch }}
       - run: cargo test
