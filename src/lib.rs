@@ -81,7 +81,7 @@ mod tests {
     #[test]
     fn store_contains_expected_data() {
         let mut s = new_test_store();
-        s.set("foo", "bar");
+        s.set("foo", "bat");
         s.set("baz", "quux");
         let want = vec![(&"baz", &"quux"), (&"foo", &"bar")];
         let mut data: Vec<(&&str, &&str)> = s.iter().collect();
