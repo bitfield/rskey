@@ -10,6 +10,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: 'main'
+          fetch-depth: 0
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: git merge $GITHUB_REF_NAME
