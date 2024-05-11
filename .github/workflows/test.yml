@@ -8,11 +8,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - run: git config --global user.email "you@example.com"
-      - run: git config --global user.name "Your Name"
-      - run: git merge origin/${{ github.event.repository.default_branch }}
       - run: cargo test
