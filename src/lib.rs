@@ -1,23 +1,28 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::{hash_map, HashMap};
+use std::ffi::OsString;
 use std::fs::File;
-use std::io::BufReader;
-use std::path::Path;
+use std::io::{BufReader, BufWriter};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Store {
+    path: OsString,
     data: HashMap<String, String>,
 }
 
 impl Store {
-    pub fn open_or_create<P: AsRef<Path>>(path: P) -> Result<Self, std::io::Error> {
-        match File::open(&path) {
+    pub fn open_or_create(path: &OsString) -> Result<Self, std::io::Error> {
+        match File::open(path) {
             Ok(file) => {
                 let reader = BufReader::new(file);
                 let data = serde_json::from_reader(reader)?;
-                Ok(Self { data })
+                Ok(Self {
+                    path: path.to_os_string(),
+                    data,
+                })
             }
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Self {
+                path: path.to_os_string(),
                 data: HashMap::new(),
             }),
             Err(e) => Err(e),
@@ -25,11 +30,15 @@ impl Store {
     }
 
     pub fn save(&self) -> Result<(), std::io::Error> {
+        let file = File::create(&self.path)?;
+        let writer = BufWriter::new(file);
+        serde_json::to_writer(writer, &self.data)?;
         Ok(())
     }
 
     pub fn set(&mut self, k: &str, v: &str) -> Result<(), std::io::Error> {
         self.data.insert(k.to_string(), v.to_string());
+        println!("Saving {:?}", self.path);
         self.save()
     }
 
@@ -51,7 +60,7 @@ mod tests {
 
     #[test]
     fn new_store_contains_no_data() {
-        let s = new_test_store();
+        let (_td, s) = new_test_store();
         assert_eq!(
             Vec::<(&String, &String)>::new(),
             s.iter().collect::<Vec<_>>(),
@@ -61,13 +70,13 @@ mod tests {
 
     #[test]
     fn get_returns_none_for_nonexistent_key() {
-        let s = new_test_store();
+        let (_td, s) = new_test_store();
         assert_eq!(None, s.get("bogus"), "unexpected value found for bogus")
     }
 
     #[test]
     fn get_returns_expected_value_for_existing_key() {
-        let mut s = new_test_store();
+        let (_td, mut s) = new_test_store();
         s.set("foo", "bar").unwrap();
         assert_eq!(
             &"bar".to_string(),
@@ -78,7 +87,7 @@ mod tests {
 
     #[test]
     fn set_same_key_fn_overwrites_old_value_and_returns_it() {
-        let mut s = new_test_store();
+        let (_td, mut s) = new_test_store();
         s.set("foo", "old").unwrap();
         s.set("foo", "new").unwrap();
         assert_eq!(
@@ -95,7 +104,7 @@ mod tests {
 
     #[test]
     fn store_contains_expected_data() {
-        let mut s = new_test_store();
+        let (_td, mut s) = new_test_store();
         s.set("foo", "bar").unwrap();
         s.set("baz", "quux").unwrap();
         let (baz, quux, foo, bar) = (
@@ -112,7 +121,7 @@ mod tests {
 
     #[test]
     fn open_or_create_fn_accepts_nonexistent_path() {
-        let s = Store::open_or_create("bogus");
+        let s = Store::open_or_create(&OsString::from("bogus"));
         assert!(s.is_ok(), "unexpected error: {:?}", s.err())
     }
 
@@ -123,13 +132,22 @@ mod tests {
         fs::write(&path, "").unwrap();
         // 'TMPDIR/not_a_directory/store_file' is invalid
         // because 'not_a_directory' is not a directory
-        let s = Store::open_or_create(path.join("store_file"));
+        let store_path = path.join("store_file").into_os_string();
+        let s = Store::open_or_create(&store_path);
         assert!(s.is_err(), "want error for invalid path")
     }
 
-    fn new_test_store() -> Store {
-        Store {
-            data: HashMap::new(),
-        }
+    fn new_test_store() -> (TempDir, Store) {
+        let tmp_dir = TempDir::new().unwrap();
+        let path = tmp_dir.path().join("store.kv").into_os_string();
+        println!("about to save {:?}", path);
+        File::create(&path).unwrap();
+        (
+            tmp_dir,
+            Store {
+                path,
+                data: HashMap::new(),
+            },
+        )
     }
 }
