@@ -134,7 +134,7 @@ mod tests {
         // because 'not_a_directory' is not a directory
         let store_path = path.join("store_file").into_os_string();
         let s = Store::open_or_create(&store_path);
-        assert!(s.is_err(), "want error for invalid path")
+        assert!(s.is_err(), "want error for invalid path, got {:?}", s)
     }
 
     fn new_test_store() -> (TempDir, Store) {
