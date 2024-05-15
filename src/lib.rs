@@ -49,7 +49,6 @@ impl Store {
     /// Will return any `Err` encountered by [`Self::save`].
     pub fn set(&mut self, k: &str, v: &str) -> Result<(), std::io::Error> {
         self.data.insert(k.to_string(), v.to_string());
-        println!("Saving {:?}", self.path);
         self.save()
     }
 
@@ -76,7 +75,6 @@ impl<'a> IntoIterator for &'a Store {
 mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
-    use std::fs;
     use tempfile::TempDir;
 
     #[test]
@@ -149,6 +147,7 @@ mod tests {
     #[test]
     #[cfg(not(windows))] // can't simulate a non-NotFound error on Windows
     fn open_or_create_fn_errors_on_invalid_path() {
+        use std::fs;
         let tmp_dir = TempDir::new().unwrap();
         let path = tmp_dir.path().join("not_a_directory");
         fs::write(&path, "").unwrap();
