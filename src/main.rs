@@ -1,7 +1,6 @@
 use rsk::Store;
 use std::env;
 use std::ffi::OsString;
-use std::process;
 
 const USAGE: &str = r#"Usage:
 rsk list - list all key-value pairs
@@ -10,41 +9,26 @@ rsk set KEY VALUE - set KEY to VALUE"#;
 
 fn main() {
     let mut s = Store::open_or_create(&OsString::from("store.kv")).unwrap();
-    let mut args = env::args();
-    let Some(verb) = args.nth(1) else {
-        println!("{}", USAGE);
-        process::exit(1)
-    };
-    match verb.as_str() {
-        "list" => {
+    let raw_args: Vec<_> = env::args().collect();
+    let args: Vec<_> = raw_args.iter().map(String::as_str).collect();
+    match args[1..] {
+        ["list"] => {
             for (k, v) in &s {
                 println!("{k}: {v}")
             }
         }
-        "get" => {
-            if let Some(key) = args.next() {
-                if let Some(value) = s.get(&key) {
-                    println!("{key}: {value}")
-                } else {
-                    println!("key {key} not found")
-                }
+        ["get", key] => {
+            if let Some(value) = s.get(key) {
+                println!("{key}: {value}")
             } else {
-                println!("{}", USAGE);
+                println!("key {key} not found")
             }
         }
-        "set" => {
-            if let Some(key) = args.next() {
-                if let Some(value) = args.next() {
-                    s.set(&key, &value).unwrap();
-                } else {
-                    println!("{}", USAGE);
-                }
-            } else {
-                println!("{}", USAGE);
-            }
+        ["set", key, value] => {
+            s.set(key, value).unwrap();
         }
         _ => {
-            println!("{}", USAGE);
+            println!("{}", USAGE)
         }
     }
 }
