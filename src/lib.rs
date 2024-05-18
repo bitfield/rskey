@@ -84,13 +84,13 @@ mod tests {
             Vec::<(&String, &String)>::new(),
             s.iter().collect::<Vec<_>>(),
             "unexpected data found in new store"
-        )
+        );
     }
 
     #[test]
     fn get_returns_none_for_nonexistent_key() {
         let (_td, s) = new_test_store();
-        assert_eq!(None, s.get("bogus"), "unexpected value found for bogus")
+        assert_eq!(None, s.get("bogus"), "unexpected value found for bogus");
     }
 
     #[test]
@@ -101,7 +101,7 @@ mod tests {
             &"bar".to_string(),
             s.get("foo").unwrap(),
             "get returned unexpected result"
-        )
+        );
     }
 
     #[test]
@@ -118,30 +118,30 @@ mod tests {
             s.get("foo").unwrap(),
             &"new".to_string(),
             "no value found for existing key"
-        )
+        );
     }
 
     #[test]
     fn store_contains_expected_data() {
         let (_td, mut s) = new_test_store();
-        s.set("foo", "bar").unwrap();
-        s.set("baz", "quux").unwrap();
-        let (baz, quux, foo, bar) = (
-            String::from("baz"),
-            String::from("quux"),
-            String::from("foo"),
-            String::from("bar"),
+        s.set("k1", "v1").unwrap();
+        s.set("k2", "v2").unwrap();
+        let (k2, v2, k1, v1) = (
+            String::from("k2"),
+            String::from("v2"),
+            String::from("k1"),
+            String::from("v1"),
         );
-        let want = vec![(&baz, &quux), (&foo, &bar)];
+        let want = vec![(&k1, &v1), (&k2, &v2)];
         let mut data = s.iter().collect::<Vec<_>>();
         data.sort();
-        assert_eq!(want, data, "expected data not returned")
+        assert_eq!(want, data, "expected data not returned");
     }
 
     #[test]
     fn open_or_create_fn_accepts_nonexistent_path() {
         let s = Store::open_or_create(&OsString::from("bogus"));
-        assert!(s.is_ok(), "unexpected error: {:?}", s.err())
+        assert!(s.is_ok(), "unexpected error: {:?}", s.err());
     }
 
     #[test]
@@ -153,7 +153,7 @@ mod tests {
         fs::write(&path, "").unwrap();
         let store_path = path.join("store_file").into_os_string();
         let s = Store::open_or_create(&store_path);
-        assert!(s.is_err(), "want error for invalid path, got {:?}", s)
+        assert!(s.is_err(), "want error for invalid path, got {s:?}");
     }
 
     fn new_test_store() -> (TempDir, Store) {
