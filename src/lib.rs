@@ -1,12 +1,12 @@
 use serde::{Deserialize, Serialize};
 use std::collections::{hash_map, HashMap};
-use std::ffi::OsString;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, ErrorKind};
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Store {
-    path: OsString,
+    path: PathBuf,
     data: HashMap<String, String>,
 }
 
@@ -15,18 +15,15 @@ impl Store {
     ///
     /// Will return `Err` for any error opening the file other than
     /// [`ErrorKind::NotFound`].
-    pub fn open_or_create(path: &OsString) -> Result<Self, std::io::Error> {
-        match File::open(path) {
+    pub fn open_or_create(store_path: &Path) -> Result<Self, std::io::Error> {
+        let path: PathBuf = store_path.into();
+        match File::open(&path) {
             Ok(file) => {
-                let reader = BufReader::new(file);
-                let data = serde_json::from_reader(reader)?;
-                Ok(Self {
-                    path: path.clone(),
-                    data,
-                })
+                let data = serde_json::from_reader(BufReader::new(file))?;
+                Ok(Self { path, data })
             }
             Err(e) if e.kind() == ErrorKind::NotFound => Ok(Self {
-                path: path.clone(),
+                path,
                 data: HashMap::new(),
             }),
             Err(e) => Err(e),
@@ -80,17 +77,15 @@ mod tests {
     #[test]
     fn new_store_contains_no_data() {
         let (_td, s) = new_test_store();
-        assert_eq!(
-            Vec::<(&String, &String)>::new(),
-            s.iter().collect::<Vec<_>>(),
-            "unexpected data found in new store"
-        );
+        assert!(s.data.is_empty(), "unexpected data found in new store");
     }
 
     #[test]
     fn get_returns_none_for_nonexistent_key() {
         let (_td, s) = new_test_store();
-        assert_eq!(None, s.get("bogus"), "unexpected value found for bogus");
+        if let Some(v) = s.get("bogus") {
+            panic!("unexpected value {v} found for bogus");
+        }
     }
 
     #[test]
@@ -98,7 +93,7 @@ mod tests {
         let (_td, mut s) = new_test_store();
         s.set("foo", "bar").unwrap();
         assert_eq!(
-            &"bar".to_string(),
+            "bar",
             s.get("foo").unwrap(),
             "get returned unexpected result"
         );
@@ -109,16 +104,12 @@ mod tests {
         let (_td, mut s) = new_test_store();
         s.set("foo", "old").unwrap();
         s.set("foo", "new").unwrap();
-        assert_eq!(
-            &"new".to_string(),
-            s.get("foo").unwrap(),
-            "old value not overwritten by new"
-        );
-        assert_eq!(
-            s.get("foo").unwrap(),
-            &"new".to_string(),
-            "no value found for existing key"
-        );
+        match s.get("foo") {
+            Some(v) if v == "old" => panic!("old value not overwritten by new"),
+            Some(v) if v != "new" => panic!("incorrect value {v} for new key"),
+            None => panic!("no value found for existing key"),
+            Some(_) => (),
+        }
     }
 
     #[test]
@@ -140,7 +131,7 @@ mod tests {
 
     #[test]
     fn open_or_create_fn_accepts_nonexistent_path() {
-        let s = Store::open_or_create(&OsString::from("bogus"));
+        let s = Store::open_or_create(Path::new("bogus"));
         assert!(s.is_ok(), "unexpected error: {:?}", s.err());
     }
 
@@ -151,14 +142,14 @@ mod tests {
         let tmp_dir = TempDir::new().unwrap();
         let path = tmp_dir.path().join("not_a_directory");
         fs::write(&path, "").unwrap();
-        let store_path = path.join("store_file").into_os_string();
+        let store_path = path.join("store_file");
         let s = Store::open_or_create(&store_path);
         assert!(s.is_err(), "want error for invalid path, got {s:?}");
     }
 
     fn new_test_store() -> (TempDir, Store) {
         let tmp_dir = TempDir::new().unwrap();
-        let path = tmp_dir.path().join("store.kv").into_os_string();
+        let path = tmp_dir.path().join("store.kv");
         File::create(&path).unwrap();
         (
             tmp_dir,
