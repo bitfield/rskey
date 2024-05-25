@@ -49,6 +49,5 @@ use rskey::Store;
 
 let mut s = Store::open_or_create("data.kv");
 s.set("key3", "value3")?;
-println!(s.get("key3")?);
-// value3
+assert_eq!("value3", s.get("key3").unwrap());
 ```
