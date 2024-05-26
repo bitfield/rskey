@@ -1,21 +1,52 @@
+[![Workflow Status](https://github.com/bitfield/rskey/workflows/CI/badge.svg)](https://github.com/bitfield/rskey/actions?query=workflow%3A%22CI%22)
+![Maintenance](https://img.shields.io/badge/maintenance-activly--developed-brightgreen.svg)
+
 # rskey
 
-rskey is a simple key-value store of strings, with a basic CLI tool to list, get, and set key-value pairs.
+A simple key-value store of strings.
 
-[![Build status](https://github.com/bitfield/rskey/actions/workflows/ci.yml/badge.svg)](https://github.com/bitfield/rskey/actions/workflows/ci.yml)
-[![Crates.io](https://img.shields.io/crates/v/rskey.svg)](https://crates.io/crates/rskey)
+### Getting started
 
-## CLI installation
+```rust
+use rskey::Store;
+use tempfile::TempDir;
+
+let tmp_dir = TempDir::new()?;
+let mut s = Store::open_or_create(tmp_dir.path().join("data.kv"))?;
+s.set("key1", "value1")?;
+assert_eq!("value1", s.get("key1").unwrap());
+```
+
+### Iteration
+
+```rust
+use rskey::Store;
+use tempfile::TempDir;
+
+let tmp_dir = TempDir::new()?;
+let mut s = Store::open_or_create(tmp_dir.path().join("data.kv"))?;
+s.set("key1", "value1")?;
+s.set("key2", "value2")?;
+for (key, value) in s {
+    println!("{key} = ${value}");
+}
+```
+
+A basic CLI tool is also included to list, get, and set key-value pairs.
+
+### Installation
 
 ```sh
 cargo install rskey
 ```
 
-## CLI usage 
+### Usage
 
-rskey expects to find a data file named `store.kv` in the current directory. If there is no such file, one will be created as soon as you set a key.
+`rskey` expects to find a data file named `store.kv` in the current
+directory. If there is no such file, one will be created as soon as you set
+a key.
 
-### Listing all data
+#### Listing all data
 
 ```sh
 rskey list
@@ -25,7 +56,7 @@ key1: value1
 key2: value2
 ```
 
-### Getting a value by key
+#### Getting a value by key
 
 ```sh
 rskey get key1
@@ -34,20 +65,10 @@ rskey get key1
 key1: value1
 ```
 
-### Setting a key-value pair
+#### Setting a key-value pair
 
 ```sh
 rskey set key3 value3
 ```
 
-## Crate usage
-
-Example:
-
-```rust
-use rskey::Store;
-
-let mut s = Store::open_or_create("data.kv");
-s.set("key3", "value3")?;
-assert_eq!("value3", s.get("key3").unwrap());
-```
+License: MIT OR Apache-2.0
