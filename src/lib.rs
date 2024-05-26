@@ -35,6 +35,45 @@
 //! # Ok(())
 //! # }
 //! ```
+//!
+//! A basic CLI tool is also included to list, get, and set key-value pairs.
+//!
+//! ## Installation
+//!
+//! ```sh
+//! cargo install rskey
+//! ```
+//!
+//! ## Usage
+//!
+//! `rskey` expects to find a data file named `store.kv` in the current
+//! directory. If there is no such file, one will be created as soon as you set
+//! a key.
+//!
+//! ### Listing all data
+//!
+//! ```sh
+//! rskey list
+//! ```
+//! ```text
+//! key1: value1
+//! key2: value2
+//! ```
+//!
+//! ### Getting a value by key
+//!
+//! ```sh
+//! rskey get key1
+//! ```
+//! ```text
+//! key1: value1
+//! ```
+//!
+//! ### Setting a key-value pair
+//!
+//! ```sh
+//! rskey set key3 value3
+//! ```
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

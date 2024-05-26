@@ -10,12 +10,14 @@ keywords = ["key-value-store", "database", "cli", "kv"]
 categories = ["command-line-utilities"]
 license = "MIT OR Apache-2.0"
 readme = "README.md"
-documentation = "https://github.com/bitfield/rskey"
+documentation = "https://docs.rs/rskey"
 homepage = "https://github.com/bitfield/rskey"
 repository = "https://github.com/bitfield/rskey"
 exclude = ["/.github/"]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[badges]
+github = { repository = "bitfield/rskey", workflow = "CI" }
+maintenance = { status = "actively-developed" }
 
 [dev-dependencies]
 pretty_assertions = "1.4.0"
