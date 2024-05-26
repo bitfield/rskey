@@ -1,7 +1,19 @@
 [package]
-name = "rsk"
+name = "rskey"
 version = "0.1.0"
+authors = ["John Arundel <john@bitfieldconsulting.com>"]
 edition = "2021"
+description = """
+rskey is a simple key-value store of strings, with a basic CLI tool to list, get, and set key-value pairs.
+"""
+keywords = ["key-value-store", "database", "cli", "kv"]
+categories = ["command-line-utilities"]
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+documentation = "https://github.com/bitfield/rskey"
+homepage = "https://github.com/bitfield/rskey"
+repository = "https://github.com/bitfield/rskey"
+exclude = ["/.github/"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
