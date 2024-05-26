@@ -15,7 +15,7 @@ fn main() {
     let args: Vec<_> = raw_args.iter().map(String::as_str).collect();
     match args.get(1..) {
         Some(["list"]) => {
-            for (k, v) in &s {
+            for (k, v) in s {
                 println!("{k}: {v}");
             }
         }

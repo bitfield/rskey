@@ -16,9 +16,28 @@
 //! # Ok(())
 //! # }
 //! ```
+//!
+//! ## Iteration
+//!
+//! ```
+//! # fn main() -> std::io::Result<()> {
+//! # use std::path::Path;
+//! use rskey::Store;
+//! use tempfile::TempDir;
+//!
+//! let tmp_dir = TempDir::new()?;
+//! let mut s = Store::open_or_create(tmp_dir.path().join("data.kv"))?;
+//! s.set("key1", "value1")?;
+//! s.set("key2", "value2")?;
+//! for (key, value) in s {
+//!     println!("{key} = ${value}");
+//! }
+//! # Ok(())
+//! # }
+//! ```
 
 use serde::{Deserialize, Serialize};
-use std::collections::{hash_map, HashMap};
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, ErrorKind};
 use std::path::Path;
@@ -125,19 +144,13 @@ impl<P: AsRef<Path>> Store<P> {
     pub fn get(&self, key: &str) -> Option<&String> {
         self.data.get(key)
     }
-
-    /// Creates an iterator of (key, value) tuples from the store's data.
-    #[must_use]
-    pub fn iter(&self) -> hash_map::Iter<String, String> {
-        self.data.iter()
-    }
 }
 
-impl<'a, P: AsRef<Path>> IntoIterator for &'a Store<P> {
-    type IntoIter = std::collections::hash_map::Iter<'a, std::string::String, std::string::String>;
-    type Item = (&'a std::string::String, &'a std::string::String);
+impl<P: AsRef<Path>> IntoIterator for Store<P> {
+    type Item = (String, String);
+    type IntoIter = std::collections::hash_map::IntoIter<String, String>;
     fn into_iter(self) -> Self::IntoIter {
-        self.iter()
+        self.data.into_iter()
     }
 }
 
@@ -207,12 +220,12 @@ mod tests {
     }
 
     #[test]
-    fn store_implements_into_iterator() {
+    fn store_data_implements_into_iterator() {
         let mut tmp = TmpStore::new();
         tmp.store.set("k1", "v1").unwrap();
         assert_eq!(
-            (&"k1".to_string(), &"v1".to_string()),
-            tmp.store.into_iter().next().unwrap()
+            ("k1".to_string(), "v1".to_string()),
+            tmp.store.data.into_iter().next().unwrap()
         );
     }
 
