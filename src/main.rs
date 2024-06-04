@@ -7,8 +7,9 @@ rskey get KEY - show value for KEY
 rskey set KEY VALUE - set KEY to VALUE";
 
 fn main() {
-    let mut s = Store::open_or_create(Path::new("store.kv")).unwrap_or_else(|e| {
-        eprintln!("oh no: {e:?}");
+    let path = Path::new("./store.kv");
+    let mut s = Store::open_or_create(path).unwrap_or_else(|e| {
+        eprintln!("opening {}: {e:?}", path.display());
         process::exit(1);
     });
     let raw_args: Vec<_> = env::args().collect();
@@ -27,10 +28,60 @@ fn main() {
             }
         }
         Some(["set", key, value]) => {
-            s.set(key, value).unwrap();
+            if let Err(e) = s.set(key, value) {
+                eprintln!("writing to {}: {e:?}", s.path.display());
+                process::exit(1);
+            }
         }
         _ => {
             println!("{USAGE}");
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use assert_cmd::Command;
+    use predicates::prelude::*;
+    use tempfile::TempDir;
+
+    #[test]
+    fn binary_with_no_args_prints_usage() {
+        let mut cmd = Command::cargo_bin("rskey").unwrap();
+        cmd.assert()
+            .success()
+            .stdout(predicate::str::contains("Usage"));
+    }
+
+    #[test]
+    fn binary_with_set_writes_correct_data_to_new_file() {
+        let tmp_dir = TempDir::new().unwrap();
+        let mut cmd = Command::cargo_bin("rskey").unwrap();
+        cmd.current_dir(&tmp_dir)
+            .args(["set", "key1", "value1"])
+            .assert()
+            .success();
+        let mut cmd = Command::cargo_bin("rskey").unwrap();
+        cmd.arg("list")
+            .current_dir(&tmp_dir)
+            .assert()
+            .success()
+            .stdout(predicate::eq("key1: value1\n"));
+    }
+
+    #[test]
+    fn binary_with_get_reads_existing_data() {
+        let tmp_dir = TempDir::new().unwrap();
+        let mut cmd = Command::cargo_bin("rskey").unwrap();
+        cmd.current_dir(&tmp_dir)
+            .args(["set", "key2", "value2"])
+            .assert()
+            .success();
+        let mut cmd = Command::cargo_bin("rskey").unwrap();
+        cmd.args(["get", "key2"])
+            .current_dir(&tmp_dir)
+            .assert()
+            .success()
+            .stdout(predicate::eq("key2: value2\n"));
     }
 }

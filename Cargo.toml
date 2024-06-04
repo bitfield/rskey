@@ -20,6 +20,8 @@ github = { repository = "bitfield/rskey", workflow = "CI" }
 maintenance = { status = "actively-developed" }
 
 [dev-dependencies]
+assert_cmd = "2.0.14"
+predicates = "3.1.0"
 pretty_assertions = "1.4.0"
 tempfile = "3.10.1"
 
