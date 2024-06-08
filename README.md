@@ -1,5 +1,6 @@
-[![Workflow Status](https://github.com/bitfield/rskey/workflows/CI/badge.svg)](https://github.com/bitfield/rskey/actions?query=workflow%3A%22CI%22)
-![Maintenance](https://img.shields.io/badge/maintenance-activly--developed-brightgreen.svg)
+![CI](https://github.com/bitfield/rskey/actions/workflows/ci.yml/badge.svg)
+![Audit](https://github.com/bitfield/rskey/actions/workflows/audit.yml/badge.svg)
+![Maintenance](https://img.shields.io/badge/maintenance-actively--developed-brightgreen.svg)
 
 # rskey
 

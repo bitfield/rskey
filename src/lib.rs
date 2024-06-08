@@ -1,4 +1,3 @@
-#![warn(missing_docs)]
 //! A simple key-value store of strings.
 //!
 //! ## Getting started
@@ -86,12 +85,18 @@ use std::path::Path;
 /// Changes to the store (for example, adding a new key-value pair with
 /// [`Self::set()`]) are automatically persisted to the file.
 #[derive(Debug, Deserialize, Serialize)]
-pub struct Store<P: AsRef<Path>> {
-    path: P,
+pub struct Store<P>
+where
+    P: AsRef<Path> + std::fmt::Debug,
+{
+    pub path: P,
     data: HashMap<String, String>,
 }
 
-impl<P: AsRef<Path>> Store<P> {
+impl<P> Store<P>
+where
+    P: AsRef<Path> + std::fmt::Debug,
+{
     /// Create a [`Store`] associated with a data file at the given `path`.
     ///
     /// If the specified file does not exist, one will be created as soon as
@@ -185,7 +190,10 @@ impl<P: AsRef<Path>> Store<P> {
     }
 }
 
-impl<P: AsRef<Path>> IntoIterator for Store<P> {
+impl<P> IntoIterator for Store<P>
+where
+    P: AsRef<Path> + std::fmt::Debug,
+{
     type Item = (String, String);
     type IntoIter = std::collections::hash_map::IntoIter<String, String>;
     fn into_iter(self) -> Self::IntoIter {
@@ -286,7 +294,10 @@ mod tests {
         assert!(s.is_err(), "want error for invalid path, got {s:?}");
     }
 
-    struct TmpStore<P: AsRef<Path>> {
+    struct TmpStore<P>
+    where
+        P: AsRef<Path> + std::fmt::Debug,
+    {
         _tmp_dir: TempDir,
         store: Store<P>,
     }

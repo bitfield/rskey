@@ -7,8 +7,9 @@ rskey get KEY - show value for KEY
 rskey set KEY VALUE - set KEY to VALUE";
 
 fn main() {
-    let mut s = Store::open_or_create(Path::new("store.kv")).unwrap_or_else(|e| {
-        eprintln!("oh no: {e:?}");
+    let path = Path::new("./store.kv");
+    let mut s = Store::open_or_create(path).unwrap_or_else(|e| {
+        eprintln!("opening {}: {e:?}", path.display());
         process::exit(1);
     });
     let raw_args: Vec<_> = env::args().collect();
@@ -27,7 +28,10 @@ fn main() {
             }
         }
         Some(["set", key, value]) => {
-            s.set(key, value).unwrap();
+            if let Err(e) = s.set(key, value) {
+                eprintln!("writing to {}: {e:?}", s.path.display());
+                process::exit(1);
+            }
         }
         _ => {
             println!("{USAGE}");
