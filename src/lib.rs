@@ -188,6 +188,22 @@ where
     pub fn get(&self, key: &str) -> Option<&String> {
         self.data.get(key)
     }
+
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.data.len()
+    }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.data.is_empty()
+    }
+
+    /// An iterator visiting all key-value pairs in arbitrary order. The
+    /// iterator element type is (&'a String, &'a String).
+    pub fn iter(&self) -> std::collections::hash_map::Iter<String, String> {
+        <&Self as IntoIterator>::into_iter(self)
+    }
 }
 
 impl<P> IntoIterator for Store<P>
@@ -201,6 +217,17 @@ where
     }
 }
 
+impl<'a, P> IntoIterator for &'a Store<P>
+where
+    P: AsRef<Path> + std::fmt::Debug,
+{
+    type Item = (&'a String, &'a String);
+    type IntoIter = std::collections::hash_map::Iter<'a, String, String>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.data.iter()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -211,10 +238,7 @@ mod tests {
     #[test]
     fn new_store_contains_no_data() {
         let s = TmpStore::new();
-        assert!(
-            s.store.data.is_empty(),
-            "unexpected data found in new store"
-        );
+        assert!(s.store.is_empty(), "unexpected data found in new store");
     }
 
     #[test]
@@ -267,13 +291,25 @@ mod tests {
     }
 
     #[test]
-    fn store_data_implements_into_iterator() {
+    fn store_implements_into_iterator() {
         let mut tmp = TmpStore::new();
         tmp.store.set("k1", "v1").unwrap();
         assert_eq!(
             ("k1".to_string(), "v1".to_string()),
-            tmp.store.data.into_iter().next().unwrap()
+            tmp.store.into_iter().next().unwrap()
         );
+    }
+
+    #[test]
+    fn store_ref_implements_into_iterator() {
+        let mut tmp = TmpStore::new();
+        tmp.store.set("k1", "v1").unwrap();
+        let s = &tmp.store;
+        assert_eq!(
+            (&"k1".to_string(), &"v1".to_string()),
+            s.iter().next().unwrap()
+        );
+        assert_eq!(1, tmp.store.len());
     }
 
     #[test]
