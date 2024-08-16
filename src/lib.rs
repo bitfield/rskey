@@ -1,4 +1,4 @@
-//! A simple key-value store of strings.
+//! A simple persistent key-value store that wraps `HashMap`.
 //!
 //! ## Getting started
 //!
@@ -9,9 +9,9 @@
 //! use tempfile::TempDir;
 //!
 //! let tmp_dir = TempDir::new()?;
-//! let mut s = Store::open_or_create(tmp_dir.path().join("data.kv"))?;
-//! s.set("key1", "value1")?;
-//! assert_eq!("value1", s.get("key1").unwrap());
+//! let mut s = Store::open_or_create(&tmp_dir.path().join("data.kv"))?;
+//! s.data.insert("key1".to_string(), "value1".to_string());
+//! assert_eq!("value1", s.data.get("key1").unwrap());
 //! # Ok(())
 //! # }
 //! ```
@@ -25,10 +25,10 @@
 //! use tempfile::TempDir;
 //!
 //! let tmp_dir = TempDir::new()?;
-//! let mut s = Store::open_or_create(tmp_dir.path().join("data.kv"))?;
-//! s.set("key1", "value1")?;
-//! s.set("key2", "value2")?;
-//! for (key, value) in s {
+//! let mut s = Store::<String>::open_or_create(&tmp_dir.path().join("data.kv"))?;
+//! s.data.insert("key1".to_string(), "value1".to_string());
+//! s.data.insert("key2".to_string(), "value2".to_string());
+//! for (key, value) in &s.data {
 //!     println!("{key} = ${value}");
 //! }
 //! # Ok(())
@@ -45,9 +45,9 @@
 //!
 //! ## Usage
 //!
-//! `rskey` expects to find a data file named `store.kv` in the current
-//! directory. If there is no such file, one will be created as soon as you set
-//! a key.
+//! The `rskey` tool expects to find a data file named `store.kv` in the current
+//! directory. If there is no such file, one will be created as soon as you set a
+//! key.
 //!
 //! ### Listing all data
 //!
@@ -74,39 +74,36 @@
 //! rskey set key3 value3
 //! ```
 
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, ErrorKind};
-use std::path::Path;
+use std::path::PathBuf;
 
 /// A key-value store associated with a particular data file.
 ///
-/// Changes to the store (for example, adding a new key-value pair with
-/// [`Self::set()`]) are automatically persisted to the file.
+/// Changes to the store are persisted to the file when [`Self::save()`] is called.
 #[derive(Debug, Deserialize, Serialize)]
-pub struct Store<P>
-where
-    P: AsRef<Path> + std::fmt::Debug,
-{
-    pub path: P,
-    data: HashMap<String, String>,
+pub struct Store<V> {
+    pub path: PathBuf,
+    pub data: HashMap<String, V>,
 }
 
-impl<P> Store<P>
+impl<V> Store<V>
 where
-    P: AsRef<Path> + std::fmt::Debug,
+    V: DeserializeOwned + Serialize,
 {
-    /// Create a [`Store`] associated with a data file at the given `path`.
+    /// Creates a [`Store`] associated with a data file at the given `path`.
     ///
     /// If the specified file does not exist, one will be created as soon as
-    /// the Store is saved (for example, on calling [`Self::set()`]).
+    /// the Store is saved (for example, by calling [`Self::save()`]).
     ///
     /// ```
     /// # fn main() -> std::io::Result<()> {
     /// # use rskey::Store;
-    /// # use std::path::Path;
-    /// let s = Store::open_or_create(Path::new("data.kv"))?;
+    /// # use std::path::PathBuf;
+    /// let s = Store::<usize>::open_or_create(&PathBuf::from("data.kv"))?;
     /// # Ok(())
     /// # }
     /// ```
@@ -115,25 +112,24 @@ where
     ///
     /// Will return `Err` for any error opening the file other than
     /// [`ErrorKind::NotFound`].
-    pub fn open_or_create(path: P) -> Result<Self, std::io::Error> {
-        match File::open(&path) {
+    pub fn open_or_create(path: &PathBuf) -> Result<Self, std::io::Error> {
+        match File::open(path) {
             Ok(file) => {
                 let data = serde_json::from_reader(BufReader::new(file))?;
-                Ok(Self { path, data })
+                Ok(Self {
+                    path: path.clone(),
+                    data,
+                })
             }
             Err(e) if e.kind() == ErrorKind::NotFound => Ok(Self {
-                path,
-                data: HashMap::new(),
+                path: path.clone(),
+                data: HashMap::<String, V>::new(),
             }),
             Err(e) => Err(e),
         }
     }
 
-    /// Write the store data to the associated file.
-    ///
-    /// It should never be necessary to call `save` explicitly, because any
-    /// change to the `Store` (for example, calling [`Self::set()`])
-    /// automatically saves the data.
+    /// Writes the store data to the associated file.
     ///
     /// # Errors
     ///
@@ -144,87 +140,6 @@ where
         let writer = BufWriter::new(file);
         serde_json::to_writer(writer, &self.data)?;
         Ok(())
-    }
-
-    /// Set a `value` associated with a given `key`.
-    ///
-    /// If `key` already exists, its current value will be overwritten.
-    ///
-    /// ```
-    /// # fn main() -> std::io::Result<()> {
-    /// # use rskey::Store;
-    /// # use std::path::Path;
-    /// use tempfile::TempDir;
-    ///
-    /// let tmp_dir = TempDir::new()?;
-    /// let mut s = Store::open_or_create(tmp_dir.path().join("data.kv"))?;
-    /// s.set("key1", "value1")?;
-    /// # Ok(())
-    /// # }
-    /// ```
-    ///
-    /// # Errors
-    ///
-    /// Will return any `Err` encountered by [`Self::save()`].
-    pub fn set(&mut self, key: &str, value: &str) -> Result<(), std::io::Error> {
-        self.data.insert(key.to_string(), value.to_string());
-        self.save()
-    }
-
-    /// Get the value associated with `key`.
-    ///
-    /// If `key` does not exist in the `Store`, the result will be `None`.
-    ///
-    /// ```
-    /// # fn main() -> std::io::Result<()> {
-    /// # use rskey::Store;
-    /// # use std::path::Path;
-    /// let s = Store::open_or_create(Path::new("data.kv"))?;
-    /// assert!(s.get("key1").is_none());
-    /// # Ok(())
-    /// # }
-    /// ```
-    #[must_use]
-    pub fn get(&self, key: &str) -> Option<&String> {
-        self.data.get(key)
-    }
-
-    #[must_use]
-    pub fn len(&self) -> usize {
-        self.data.len()
-    }
-
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.data.is_empty()
-    }
-
-    /// An iterator visiting all key-value pairs in arbitrary order. The
-    /// iterator element type is (&'a String, &'a String).
-    pub fn iter(&self) -> std::collections::hash_map::Iter<String, String> {
-        <&Self as IntoIterator>::into_iter(self)
-    }
-}
-
-impl<P> IntoIterator for Store<P>
-where
-    P: AsRef<Path> + std::fmt::Debug,
-{
-    type Item = (String, String);
-    type IntoIter = std::collections::hash_map::IntoIter<String, String>;
-    fn into_iter(self) -> Self::IntoIter {
-        self.data.into_iter()
-    }
-}
-
-impl<'a, P> IntoIterator for &'a Store<P>
-where
-    P: AsRef<Path> + std::fmt::Debug,
-{
-    type Item = (&'a String, &'a String);
-    type IntoIter = std::collections::hash_map::Iter<'a, String, String>;
-    fn into_iter(self) -> Self::IntoIter {
-        self.data.iter()
     }
 }
 
@@ -238,83 +153,32 @@ mod tests {
     #[test]
     fn new_store_contains_no_data() {
         let s = TmpStore::new();
-        assert!(s.store.is_empty(), "unexpected data found in new store");
-    }
-
-    #[test]
-    fn get_returns_none_for_nonexistent_key() {
-        let s = TmpStore::new();
-        if let Some(v) = s.store.get("bogus") {
-            panic!("unexpected value {v} found for bogus");
-        }
-    }
-
-    #[test]
-    fn get_returns_expected_value_for_existing_key() {
-        let mut s = TmpStore::new();
-        s.store.set("foo", "bar").unwrap();
-        assert_eq!(
-            "bar",
-            s.store.get("foo").unwrap(),
-            "get returned unexpected result"
+        assert!(
+            s.store.data.is_empty(),
+            "unexpected data found in new store"
         );
     }
 
     #[test]
-    fn set_same_key_fn_overwrites_old_value_and_returns_it() {
+    fn save_persists_changes_to_store() {
         let mut tmp = TmpStore::new();
-        tmp.store.set("foo", "old").unwrap();
-        tmp.store.set("foo", "new").unwrap();
-        match tmp.store.get("foo").map(String::as_str) {
-            Some("new") => (),
-            Some("old") => panic!("old value not overwritten by new"),
-            Some(v) => panic!("incorrect value {v} for new key"),
-            None => panic!("no value found for existing key"),
-        }
-    }
-
-    #[test]
-    fn store_contains_expected_data() {
-        let mut tmp = TmpStore::new();
-        tmp.store.set("k1", "v1").unwrap();
-        tmp.store.set("k2", "v2").unwrap();
-        assert_eq!("v1", tmp.store.get("k1").unwrap());
-        assert_eq!("v2", tmp.store.get("k2").unwrap());
-    }
-
-    #[test]
-    fn store_persists_changes() {
-        let mut tmp = TmpStore::new();
-        tmp.store.set("k1", "v1").unwrap();
-        let s2 = Store::open_or_create(&tmp.store.path).unwrap();
-        assert_eq!("v1", s2.get("k1").unwrap(), "expected data not returned");
-    }
-
-    #[test]
-    fn store_implements_into_iterator() {
-        let mut tmp = TmpStore::new();
-        tmp.store.set("k1", "v1").unwrap();
-        assert_eq!(
-            ("k1".to_string(), "v1".to_string()),
-            tmp.store.into_iter().next().unwrap()
+        assert!(
+            tmp.store.data.insert("k1".into(), "v1".into()).is_none(),
+            "key should not already be present in new empty store"
         );
-    }
-
-    #[test]
-    fn store_ref_implements_into_iterator() {
-        let mut tmp = TmpStore::new();
-        tmp.store.set("k1", "v1").unwrap();
-        let s = &tmp.store;
+        tmp.store.save().unwrap();
+        let s2 = Store::<String>::open_or_create(&tmp.store.path)
+            .expect("opening existing store should succeed");
         assert_eq!(
-            (&"k1".to_string(), &"v1".to_string()),
-            s.iter().next().unwrap()
+            "v1",
+            s2.data.get("k1").unwrap(),
+            "expected data not returned"
         );
-        assert_eq!(1, tmp.store.len());
     }
 
     #[test]
     fn open_or_create_fn_accepts_nonexistent_path() {
-        let s = Store::open_or_create(Path::new("bogus"));
+        let s = Store::<String>::open_or_create(&PathBuf::from("bogus"));
         assert!(s.is_ok(), "unexpected error: {:?}", s.err());
     }
 
@@ -326,19 +190,16 @@ mod tests {
         let mut path = tmp_dir.path().join("not_a_directory");
         fs::write(&path, "").unwrap();
         path.push("store_file");
-        let s = Store::open_or_create(&path);
+        let s = Store::<String>::open_or_create(&path);
         assert!(s.is_err(), "want error for invalid path, got {s:?}");
     }
 
-    struct TmpStore<P>
-    where
-        P: AsRef<Path> + std::fmt::Debug,
-    {
+    struct TmpStore {
         _tmp_dir: TempDir,
-        store: Store<P>,
+        store: Store<String>,
     }
 
-    impl TmpStore<PathBuf> {
+    impl TmpStore {
         fn new() -> Self {
             let tmp_dir = TempDir::new().unwrap();
             let path = tmp_dir.path().join("store.kv");

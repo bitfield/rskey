@@ -1,10 +1,10 @@
 [package]
 name = "rskey"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["John Arundel <john@bitfieldconsulting.com>"]
 edition = "2021"
 description = """
-rskey is a simple key-value store of strings, with a basic CLI tool to list, get, and set key-value pairs.
+A simple persistent key-value store that wraps HashMap, with a basic CLI tool to list, get, and set key-value pairs.
 """
 keywords = ["key-value-store", "database", "cli", "kv"]
 categories = ["command-line-utilities"]
@@ -14,10 +14,6 @@ documentation = "https://docs.rs/rskey"
 homepage = "https://github.com/bitfield/rskey"
 repository = "https://github.com/bitfield/rskey"
 exclude = ["/.github/"]
-
-[badges]
-github = { repository = "bitfield/rskey", workflow = "CI" }
-maintenance = { status = "actively-developed" }
 
 [dev-dependencies]
 assert_cmd = "2.0.14"
