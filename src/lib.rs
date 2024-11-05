@@ -168,7 +168,6 @@ impl<V> IntoIterator for Store<V> {
 mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
-    use std::path::PathBuf;
     use tempfile::TempDir;
 
     #[test]
@@ -192,7 +191,7 @@ mod tests {
 
     #[test]
     fn open_or_create_fn_accepts_nonexistent_path() {
-        let s = Store::<String>::open(&PathBuf::from("bogus"));
+        let s = Store::<String>::open("bogus");
         assert!(s.is_ok(), "unexpected error: {:?}", s.err());
     }
 
