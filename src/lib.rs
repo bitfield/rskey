@@ -84,7 +84,7 @@ where
     /// the Store is saved (for example, by calling [`Self::sync()`]).
     ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// # fn main() -> std::io::Result<()> {
     /// use rskey::Store;
@@ -114,7 +114,7 @@ where
     /// Writes the store data to the associated file.
     ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// # fn main() -> std::io::Result<()> {
     /// # use tempfile::TempDir;
@@ -127,7 +127,7 @@ where
     /// # Ok(())
     /// # }
     /// ```
-    /// 
+    ///
     /// # Errors
     ///
     /// Will return `Err` for any error creating the file or serializing the
@@ -174,10 +174,7 @@ mod tests {
     #[test]
     fn new_store_contains_no_data() {
         let s = TmpStore::new();
-        assert!(
-            s.store.is_empty(),
-            "unexpected data found in new store"
-        );
+        assert!(s.store.is_empty(), "unexpected data found in new store");
     }
 
     #[test]
@@ -188,13 +185,9 @@ mod tests {
             "key should not already be present in new empty store"
         );
         tmp.store.sync().unwrap();
-        let s2 = Store::<String>::open(&tmp.store.path)
-            .expect("opening existing store should succeed");
-        assert_eq!(
-            "v1",
-            s2.get("k1").unwrap(),
-            "expected data not returned"
-        );
+        let s2 =
+            Store::<String>::open(&tmp.store.path).expect("opening existing store should succeed");
+        assert_eq!("v1", s2.get("k1").unwrap(), "expected data not returned");
     }
 
     #[test]
