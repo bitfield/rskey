@@ -12,27 +12,11 @@ A simple persistent key-value store that wraps `HashMap`.
 
 ```rust
 use rskey::Store;
-use tempfile::TempDir;
 
-let tmp_dir = TempDir::new()?;
-let mut s = Store::open_or_create(&tmp_dir.path().join("data.kv"))?;
-s.data.insert("key1".to_string(), "value1".to_string());
-assert_eq!("value1", s.data.get("key1").unwrap());
-```
-
-### Iteration
-
-```rust
-use rskey::Store;
-use tempfile::TempDir;
-
-let tmp_dir = TempDir::new()?;
-let mut s = Store::<String>::open_or_create(&tmp_dir.path().join("data.kv"))?;
-s.data.insert("key1".to_string(), "value1".to_string());
-s.data.insert("key2".to_string(), "value2".to_string());
-for (key, value) in &s.data {
-    println!("{key} = ${value}");
-}
+let mut s = Store::open(path)?;
+s.insert("key1".to_string(), "value1".to_string());
+assert_eq!(s.get("key1").unwrap(), "value1");
+s.sync()?;
 ```
 
 A basic CLI tool is also included to list, get, and set key-value pairs.
@@ -74,6 +58,6 @@ key1: value1
 rskey set key3 value3
 ```
 
-Current version: 0.3.0
+Current version: 0.4.0
 
 License: MIT OR Apache-2.0
