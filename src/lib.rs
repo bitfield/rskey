@@ -4,33 +4,15 @@
 //!
 //! ```
 //! # fn main() -> std::io::Result<()> {
-//! # use std::path::Path;
 //! use rskey::Store;
-//! use tempfile::TempDir;
+//! # use tempfile::TempDir;
 //!
-//! let tmp_dir = TempDir::new()?;
-//! let mut s = Store::open_or_create(&tmp_dir.path().join("data.kv"))?;
-//! s.data.insert("key1".to_string(), "value1".to_string());
-//! assert_eq!("value1", s.data.get("key1").unwrap());
-//! # Ok(())
-//! # }
-//! ```
-//!
-//! ## Iteration
-//!
-//! ```
-//! # fn main() -> std::io::Result<()> {
-//! # use std::path::Path;
-//! use rskey::Store;
-//! use tempfile::TempDir;
-//!
-//! let tmp_dir = TempDir::new()?;
-//! let mut s = Store::<String>::open_or_create(&tmp_dir.path().join("data.kv"))?;
-//! s.data.insert("key1".to_string(), "value1".to_string());
-//! s.data.insert("key2".to_string(), "value2".to_string());
-//! for (key, value) in &s.data {
-//!     println!("{key} = ${value}");
-//! }
+//! # let tmp_dir = TempDir::new()?;
+//! # let path = tmp_dir.path().join("data.kv");
+//! let mut s = Store::open(path)?;
+//! s.insert("key1".to_string(), "value1".to_string());
+//! assert_eq!(s.get("key1").unwrap(), "value1");
+//! s.sync()?;
 //! # Ok(())
 //! # }
 //! ```
@@ -76,18 +58,20 @@
 
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use std::collections::hash_map::IntoIter;
 use std::collections::HashMap;
-use std::fs::File;
-use std::io::{BufReader, BufWriter, ErrorKind};
-use std::path::PathBuf;
+use std::fs::{self, File};
+use std::io::{BufReader, BufWriter};
+use std::ops::{Deref, DerefMut};
+use std::path::{Path, PathBuf};
 
 /// A key-value store associated with a particular data file.
 ///
-/// Changes to the store are persisted to the file when [`Self::save()`] is called.
+/// Changes to the store are persisted to the file when [`Self::sync()`] is called.
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Store<V> {
     pub path: PathBuf,
-    pub data: HashMap<String, V>,
+    inner: HashMap<String, V>,
 }
 
 impl<V> Store<V>
@@ -97,49 +81,86 @@ where
     /// Creates a [`Store`] associated with a data file at the given `path`.
     ///
     /// If the specified file does not exist, one will be created as soon as
-    /// the Store is saved (for example, by calling [`Self::save()`]).
+    /// the Store is saved (for example, by calling [`Self::sync()`]).
     ///
+    /// # Examples
+    /// 
     /// ```
     /// # fn main() -> std::io::Result<()> {
-    /// # use rskey::Store;
-    /// # use std::path::PathBuf;
-    /// let s = Store::<usize>::open_or_create(&PathBuf::from("data.kv"))?;
+    /// use rskey::Store;
+    /// # use tempfile::TempDir;
+    ///
+    /// # let tmp_dir = TempDir::new()?;
+    /// # let path = tmp_dir.path().join("data.kv");
+    /// let s = Store::<usize>::open(path)?;
     /// # Ok(())
     /// # }
     /// ```
     ///
     /// # Errors
     ///
-    /// Will return `Err` for any error opening the file other than
-    /// [`ErrorKind::NotFound`].
-    pub fn open_or_create(path: &PathBuf) -> Result<Self, std::io::Error> {
-        match File::open(path) {
-            Ok(file) => {
-                let data = serde_json::from_reader(BufReader::new(file))?;
-                Ok(Self {
-                    path: path.clone(),
-                    data,
-                })
-            }
-            Err(e) if e.kind() == ErrorKind::NotFound => Ok(Self {
-                path: path.clone(),
-                data: HashMap::<String, V>::new(),
-            }),
-            Err(e) => Err(e),
+    /// Returns any error opening the file (if it exists).
+    pub fn open(path: impl AsRef<Path>) -> Result<Self, std::io::Error> {
+        let mut store = Self {
+            path: path.as_ref().into(),
+            inner: HashMap::<String, V>::new(),
+        };
+        if fs::exists(&path)? {
+            store.inner = serde_json::from_reader(BufReader::new(File::open(&path)?))?;
         }
+        Ok(store)
     }
 
     /// Writes the store data to the associated file.
     ///
+    /// # Examples
+    /// 
+    /// ```
+    /// # fn main() -> std::io::Result<()> {
+    /// # use tempfile::TempDir;
+    /// # use rskey::Store;
+    /// # let tmp_dir = TempDir::new()?;
+    /// # let path = tmp_dir.path().join("data.kv");
+    /// let mut s = Store::<usize>::open(path)?;
+    /// s.insert("foo".to_string(), 42);
+    /// s.sync()?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    /// 
     /// # Errors
     ///
     /// Will return `Err` for any error creating the file or serializing the
     /// JSON to it.
-    pub fn save(&self) -> Result<(), std::io::Error> {
+    pub fn sync(&self) -> Result<(), std::io::Error> {
         let file = File::create(&self.path)?;
         let writer = BufWriter::new(file);
-        serde_json::to_writer(writer, &self.data)?;
+        serde_json::to_writer(writer, &self.inner)?;
         Ok(())
+    }
+}
+
+impl<V> Deref for Store<V> {
+    type Target = HashMap<String, V>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl<V> DerefMut for Store<V> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.inner
+    }
+}
+
+impl<V> IntoIterator for Store<V> {
+    type Item = (String, V);
+
+    type IntoIter = IntoIter<String, V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.inner.into_iter()
     }
 }
 
@@ -154,31 +175,31 @@ mod tests {
     fn new_store_contains_no_data() {
         let s = TmpStore::new();
         assert!(
-            s.store.data.is_empty(),
+            s.store.is_empty(),
             "unexpected data found in new store"
         );
     }
 
     #[test]
-    fn save_persists_changes_to_store() {
+    fn sync_persists_changes_to_store() {
         let mut tmp = TmpStore::new();
         assert!(
-            tmp.store.data.insert("k1".into(), "v1".into()).is_none(),
+            tmp.store.insert("k1".into(), "v1".into()).is_none(),
             "key should not already be present in new empty store"
         );
-        tmp.store.save().unwrap();
-        let s2 = Store::<String>::open_or_create(&tmp.store.path)
+        tmp.store.sync().unwrap();
+        let s2 = Store::<String>::open(&tmp.store.path)
             .expect("opening existing store should succeed");
         assert_eq!(
             "v1",
-            s2.data.get("k1").unwrap(),
+            s2.get("k1").unwrap(),
             "expected data not returned"
         );
     }
 
     #[test]
     fn open_or_create_fn_accepts_nonexistent_path() {
-        let s = Store::<String>::open_or_create(&PathBuf::from("bogus"));
+        let s = Store::<String>::open(&PathBuf::from("bogus"));
         assert!(s.is_ok(), "unexpected error: {:?}", s.err());
     }
 
@@ -190,7 +211,7 @@ mod tests {
         let mut path = tmp_dir.path().join("not_a_directory");
         fs::write(&path, "").unwrap();
         path.push("store_file");
-        let s = Store::<String>::open_or_create(&path);
+        let s = Store::<String>::open(&path);
         assert!(s.is_err(), "want error for invalid path, got {s:?}");
     }
 
@@ -208,7 +229,7 @@ mod tests {
                 _tmp_dir: tmp_dir,
                 store: Store {
                     path,
-                    data: HashMap::new(),
+                    inner: HashMap::new(),
                 },
             }
         }
