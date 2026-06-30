@@ -23,7 +23,7 @@ fn main() -> anyhow::Result<()> {
                 println!("{key}: {value}");
             } else {
                 println!(r#"key "{key}" not found"#);
-            };
+            }
         }
         Some(["set", key, value]) => {
             s.insert((*key).to_string(), (*value).to_string());
